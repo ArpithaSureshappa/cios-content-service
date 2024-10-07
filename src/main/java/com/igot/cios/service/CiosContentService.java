@@ -21,7 +21,7 @@ public interface CiosContentService {
 
     PaginatedResponse<?> fetchAllContentFromSecondaryDb(RequestDto dto);
 
-    void loadContentProgressFromExcel(MultipartFile file, String orgId);
+    void loadContentProgressFromExcel(MultipartFile file, String partnerCode);
 
     List<FileInfoEntity> getAllFileInfos(String partnerId);
 
