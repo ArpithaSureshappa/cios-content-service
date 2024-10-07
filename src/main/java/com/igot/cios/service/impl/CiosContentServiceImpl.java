@@ -162,7 +162,7 @@ public class CiosContentServiceImpl implements CiosContentService {
             });
             JsonNode transformData = dataTransformUtility.transformData(rawContentData, contentJson);
             payloadValidation.validatePayload(Constants.PROGRESS_DATA_VALIDATION_FILE, transformData);
-            ((ObjectNode) transformData).put("orgId", partnerCode);
+            ((ObjectNode)transformData).put("orgId",partnerCode);
             kafkaProducer.push(topic, transformData);
             log.info("callCornellEnrollmentAPI {} ", transformData.asText());
         } catch (Exception e) {
