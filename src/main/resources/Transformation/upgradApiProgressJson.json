@@ -4,8 +4,7 @@
     "spec": {
       "student": "userid",
       "course": "courseid",
-      "completion_date": "completedon",
-      "status": "status"
+      "completion_date": "completedon"
     }
   }
 ]

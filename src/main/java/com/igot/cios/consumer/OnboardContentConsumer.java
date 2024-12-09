@@ -69,10 +69,10 @@ public class OnboardContentConsumer {
         JsonNode jsonData = objectMapper.valueToTree(processedData);
 
         JsonNode entity = dataTransformUtility.fetchPartnerInfoUsingApi(partnerCode);
-        List<Object> contentJson = objectMapper.convertValue(entity.path("result").path("trasformContentJson"), new TypeReference<List<Object>>() {
+        List<Object> contentJson = objectMapper.convertValue(entity.path("trasformContentJson"), new TypeReference<List<Object>>() {
         });
         if(contentJson == null || contentJson.isEmpty()){
-            log.error("trasformContentJson is missing, please update in contentPartner");
+            log.error("trasformContentJson is missing, please update in contentPartner for partner {}",partnerCode);
             throw new CiosContentException("ERROR","trasformContentJson is missing, please update in contentPartner", HttpStatus.INTERNAL_SERVER_ERROR);
         }
         dataTransformUtility.updateProcessedDataInDb(jsonData, partnerCode, fileName, fileId, contentJson,partnerId);

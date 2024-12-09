@@ -70,4 +70,22 @@ public class CbServerProperties {
 
     @Value("${kafka.topic.content.onboarding}")
     private String ciosContentOnboardTopic;
+
+    @Value("${cornell.partner.code}")
+    public String cornellPartnerCode;
+
+    @Value("${coursera.partner.code}")
+    public String courseraPartnerCode;
+
+    @Value("${coursera.enrollment.service.code}")
+    private String courseraEnrollmentServiceCode;
+
+    @Value("${coursera.enrollment.list.limit}")
+    private String courseraEnrollmentListLimit;
+
+    @Value("${coursera.enrollment.list.course_type}")
+    private String courseraEnrollmentListCourseType;
+
+    @Value("${coursera.date.range}")
+    private Long courseraDateRange;
 }
