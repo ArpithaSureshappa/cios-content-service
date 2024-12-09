@@ -108,7 +108,7 @@ public class CourseraSchedulerService implements SchedulerInterface{
             if (rawContentData.get("contentType").asText().equalsIgnoreCase("Specialization") && rawContentData.get("isCompleted").asBoolean()) {
                 JsonNode entity = dataTransformUtility.fetchPartnerInfoUsingApi(partnerCode);
                 if (!entity.path("transformProgressJson").isMissingNode()) {
-                    List<Object> contentJson = objectMapper.convertValue(entity.get("transformProgressJson"), new TypeReference<List<Object>>() {});
+                    List<Object> contentJson = objectMapper.convertValue(entity.get("transformProgressViaApi"), new TypeReference<List<Object>>() {});
                     JsonNode transformData = dataTransformUtility.transformData(rawContentData, contentJson);
                     String extCourseId = transformData.get("courseid").asText();
                     String partnerId = entity.get("id").asText();
