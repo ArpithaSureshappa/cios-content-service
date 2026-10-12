@@ -2,11 +2,14 @@
   {
     "operation": "shift",
     "spec": {
+      "pagination": {
+        "total": "count"
+      },
       "enrollments": {
         "*": {
-          "student": "[&1].userid",
-          "course": "[&1].courseid",
-          "completion_date": "[&1].completedon"
+          "student": "data[&1].userid",
+          "course": "data[&1].courseid",
+          "completion_date": "data[&1].completedon"
         }
       }
     }
