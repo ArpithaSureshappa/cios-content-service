@@ -317,6 +317,25 @@ public class Constants {
     public static final String OIDC_JWKS_MALFORMED_KEY = "The platform's public signing key configuration contains an invalid key. "
             + "Please verify the configured toolPublicJwksUrl and the platform's signing keys.";
 
+    /** PoC placeholder: no per-Tool registry exists yet to look up which Tool a Deep Linking
+     *  Response came from, so every known Tool's JWKS is tried in turn, matching by {@code kid}.
+     *  Replace with a real per-partner JWKS lookup once that registry exists. */
+    public static final java.util.List<String> KNOWN_TOOL_JWKS_URLS = java.util.List.of(
+            "https://moodle.uat.karmayogibharat.net/enrol/lti/jwks.php",
+            "https://www.coursera.org/api/rest/v1/tool-lti/.well-known/jwks.json"
+    );
+
+    public static final String API_LTI_DEEPLINK_RETURN = "api.lti.deeplink.return";
+    public static final String MISSING_JWT = "Missing mandatory parameter: JWT";
+    public static final String DEEPLINK_JWT_MALFORMED = "Deep Linking Response JWT is malformed: ";
+    public static final String DEEPLINK_JWT_KID_NOT_FOUND = "Could not find a matching signing key for this JWT's kid in any known Tool's JWKS: ";
+    public static final String DEEPLINK_JWT_SIGNATURE_INVALID = "Deep Linking Response JWT signature verification failed";
+    public static final String DEEPLINK_JWT_EXPIRED = "Deep Linking Response JWT has expired";
+    public static final String DEEPLINK_WRONG_MESSAGE_TYPE = "Expected LtiDeepLinkingResponse message_type, got: ";
+    public static final String CONTENT_ITEMS_CLAIM = "https://purl.imsglobal.org/spec/lti-dl/claim/content_items";
+    public static final String DEEPLINK_MESSAGE_TYPE_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/message_type";
+    public static final String DEEPLINK_MESSAGE_TYPE_RESPONSE = "LtiDeepLinkingResponse";
+
     private Constants() {
     }
 }

@@ -1,9 +1,16 @@
 package com.igot.cios.lti.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cios.dto.SBApiResponse;
 import com.igot.cios.plugins.DataTransformUtility;
 import com.igot.cios.util.Constants;
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.JWSVerifier;
+import com.nimbusds.jose.crypto.RSASSAVerifier;
+import com.nimbusds.jose.jwk.JWK;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -107,6 +114,86 @@ public class LtiServiceImpl implements LtiService {
             response.getParams().setStatus(Constants.FAILED);
             response.getParams().setErrmsg(String.join("; ", failureReasons));
         }
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    /**
+     * Receives a Tool's signed LTI 1.3 Deep Linking Response (the reverse direction from the
+     * Platform-issued id_token - here the Tool is the issuer, and we verify against its own
+     * published JWKS instead of our own). No per-Tool registry exists yet to know which Tool a
+     * given response came from, so every known Tool's JWKS is tried in turn, matching by the
+     * JWT's kid header - see {@link Constants#KNOWN_TOOL_JWKS_URLS}.
+     */
+    @Override
+    public SBApiResponse handleDeepLinkingReturn(String jwt) {
+        SBApiResponse response = SBApiResponse.createDefaultResponse(Constants.API_LTI_DEEPLINK_RETURN);
+
+        if (StringUtils.isBlank(jwt)) {
+            return failedResponse(response, Constants.MISSING_JWT, HttpStatus.BAD_REQUEST);
+        }
+
+        JWSObject jwsObject;
+        try {
+            jwsObject = JWSObject.parse(jwt);
+        } catch (Exception e) {
+            log.error("LtiServiceImpl::handleDeepLinkingReturn: failed to parse JWT", e);
+            return failedResponse(response, Constants.DEEPLINK_JWT_MALFORMED + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
+        String kid = jwsObject.getHeader().getKeyID();
+        JWK matchedKey = null;
+        for (String jwksUrl : Constants.KNOWN_TOOL_JWKS_URLS) {
+            try {
+                String jwksJson = restTemplate.getForObject(jwksUrl, String.class);
+                JWKSet jwkSet = JWKSet.parse(jwksJson);
+                JWK key = jwkSet.getKeyByKeyId(kid);
+                if (key != null) {
+                    matchedKey = key;
+                    break;
+                }
+            } catch (Exception e) {
+                log.error("LtiServiceImpl::handleDeepLinkingReturn: failed to fetch/parse JWKS from {}", jwksUrl, e);
+            }
+        }
+        if (matchedKey == null) {
+            return failedResponse(response, Constants.DEEPLINK_JWT_KID_NOT_FOUND + kid, HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            JWSVerifier verifier = new RSASSAVerifier(((RSAKey) matchedKey).toRSAPublicKey());
+            if (!jwsObject.verify(verifier)) {
+                return failedResponse(response, Constants.DEEPLINK_JWT_SIGNATURE_INVALID, HttpStatus.BAD_REQUEST);
+            }
+        } catch (Exception e) {
+            log.error("LtiServiceImpl::handleDeepLinkingReturn: signature verification failed", e);
+            return failedResponse(response, Constants.DEEPLINK_JWT_SIGNATURE_INVALID, HttpStatus.BAD_REQUEST);
+        }
+
+        JsonNode claims;
+        try {
+            claims = new ObjectMapper().readTree(jwsObject.getPayload().toString());
+        } catch (Exception e) {
+            return failedResponse(response, Constants.DEEPLINK_JWT_MALFORMED + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+
+        long exp = claims.path("exp").asLong(0);
+        if (exp <= System.currentTimeMillis() / 1000) {
+            return failedResponse(response, Constants.DEEPLINK_JWT_EXPIRED, HttpStatus.BAD_REQUEST);
+        }
+
+        String messageType = claims.path(Constants.DEEPLINK_MESSAGE_TYPE_CLAIM).asText("");
+        if (!Constants.DEEPLINK_MESSAGE_TYPE_RESPONSE.equals(messageType)) {
+            return failedResponse(response, Constants.DEEPLINK_WRONG_MESSAGE_TYPE + messageType, HttpStatus.BAD_REQUEST);
+        }
+
+        JsonNode contentItems = claims.path(Constants.CONTENT_ITEMS_CLAIM);
+        log.info("LtiServiceImpl::handleDeepLinkingReturn: received content_items: {}", contentItems);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("contentItems", contentItems);
+        response.setResult(result);
+        response.getParams().setStatus(Constants.SUCCESS);
         response.setResponseCode(HttpStatus.OK);
         return response;
     }

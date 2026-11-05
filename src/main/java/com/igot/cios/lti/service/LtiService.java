@@ -5,4 +5,6 @@ import com.igot.cios.dto.SBApiResponse;
 public interface LtiService {
 
     SBApiResponse testOidcConnection(String partnerCode, String loginHint, String messageHint);
+
+    SBApiResponse handleDeepLinkingReturn(String jwt);
 }
