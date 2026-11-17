@@ -15,6 +15,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -85,5 +86,39 @@ class LtiControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.params.status").value(Constants.FAILED))
                 .andExpect(jsonPath("$.params.errmsg").value("Partner not found for code: UNKNOWN-PARTNER"));
+    }
+
+    @Test
+    void getLineItems_returnsLineItemContainerContentType() throws Exception {
+        Map<String, Object> lineItem = new HashMap<>();
+        lineItem.put(Constants.AGS_FIELD_ID, Constants.AGS_LINEITEM_BASE_URL + "/1/lineitem");
+        lineItem.put(Constants.AGS_FIELD_LABEL, Constants.AGS_PLACEHOLDER_LABEL);
+        lineItem.put(Constants.AGS_FIELD_SCORE_MAXIMUM, Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM);
+
+        Mockito.when(ltiService.getLineItems()).thenReturn(List.of(lineItem));
+
+        mockMvc.perform(get("/ciosIntegration/lti/ags/lineitems"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(Constants.AGS_LINEITEMS_CONTAINER_CONTENT_TYPE))
+                .andExpect(jsonPath("$[0].id").value(Constants.AGS_LINEITEM_BASE_URL + "/1/lineitem"))
+                .andExpect(jsonPath("$[0].label").value(Constants.AGS_PLACEHOLDER_LABEL))
+                .andExpect(jsonPath("$[0].scoreMaximum").value(Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM));
+    }
+
+    @Test
+    void getLineItem_returnsLineItemContentType() throws Exception {
+        Map<String, Object> lineItem = new HashMap<>();
+        lineItem.put(Constants.AGS_FIELD_ID, Constants.AGS_LINEITEM_BASE_URL + "/1/lineitem");
+        lineItem.put(Constants.AGS_FIELD_LABEL, Constants.AGS_PLACEHOLDER_LABEL);
+        lineItem.put(Constants.AGS_FIELD_SCORE_MAXIMUM, Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM);
+
+        Mockito.when(ltiService.getLineItem("1")).thenReturn(lineItem);
+
+        mockMvc.perform(get("/ciosIntegration/lti/ags/lineitems/{lineItemId}/lineitem", "1"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(Constants.AGS_LINEITEM_CONTENT_TYPE))
+                .andExpect(jsonPath("$.id").value(Constants.AGS_LINEITEM_BASE_URL + "/1/lineitem"))
+                .andExpect(jsonPath("$.label").value(Constants.AGS_PLACEHOLDER_LABEL))
+                .andExpect(jsonPath("$.scoreMaximum").value(Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM));
     }
 }

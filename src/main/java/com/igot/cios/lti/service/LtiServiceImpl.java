@@ -411,6 +411,29 @@ public class LtiServiceImpl implements LtiService {
         return null;
     }
 
+    /**
+     * AGS stub - see {@link Constants#AGS_LINEITEM_BASE_URL} javadoc. Always returns the one
+     * static placeholder line item regardless of what's actually in the platform; no lineitem
+     * registry/persistence exists.
+     */
+    @Override
+    public List<Map<String, Object>> getLineItems() {
+        return List.of(buildPlaceholderLineItem(Constants.AGS_PLACEHOLDER_LINEITEM_ID));
+    }
+
+    @Override
+    public Map<String, Object> getLineItem(String lineItemId) {
+        return buildPlaceholderLineItem(lineItemId);
+    }
+
+    private Map<String, Object> buildPlaceholderLineItem(String lineItemId) {
+        Map<String, Object> lineItem = new HashMap<>();
+        lineItem.put(Constants.AGS_FIELD_ID, Constants.AGS_LINEITEM_BASE_URL + "/" + lineItemId + "/lineitem");
+        lineItem.put(Constants.AGS_FIELD_LABEL, Constants.AGS_PLACEHOLDER_LABEL);
+        lineItem.put(Constants.AGS_FIELD_SCORE_MAXIMUM, Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM);
+        return lineItem;
+    }
+
     private SBApiResponse failedResponse(SBApiResponse response, String errorMessage, HttpStatus httpStatus) {
         response.getParams().setStatus(Constants.FAILED);
         response.getParams().setErrmsg(errorMessage);

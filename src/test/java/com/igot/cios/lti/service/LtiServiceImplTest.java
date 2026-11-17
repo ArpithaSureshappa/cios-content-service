@@ -446,6 +446,27 @@ class LtiServiceImplTest {
         assertTrue(errmsg.contains("; "));
     }
 
+    @Test
+    void getLineItems_returnsSinglePlaceholderLineItem() {
+        List<Map<String, Object>> lineItems = service.getLineItems();
+
+        assertEquals(1, lineItems.size());
+        Map<String, Object> lineItem = lineItems.get(0);
+        assertEquals(Constants.AGS_LINEITEM_BASE_URL + "/" + Constants.AGS_PLACEHOLDER_LINEITEM_ID + "/lineitem",
+                lineItem.get(Constants.AGS_FIELD_ID));
+        assertEquals(Constants.AGS_PLACEHOLDER_LABEL, lineItem.get(Constants.AGS_FIELD_LABEL));
+        assertEquals(Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM, lineItem.get(Constants.AGS_FIELD_SCORE_MAXIMUM));
+    }
+
+    @Test
+    void getLineItem_buildsIdFromGivenLineItemId() {
+        Map<String, Object> lineItem = service.getLineItem("42");
+
+        assertEquals(Constants.AGS_LINEITEM_BASE_URL + "/42/lineitem", lineItem.get(Constants.AGS_FIELD_ID));
+        assertEquals(Constants.AGS_PLACEHOLDER_LABEL, lineItem.get(Constants.AGS_FIELD_LABEL));
+        assertEquals(Constants.AGS_PLACEHOLDER_SCORE_MAXIMUM, lineItem.get(Constants.AGS_FIELD_SCORE_MAXIMUM));
+    }
+
     // ---------------- helpers ----------------
 
     private void stubPartner(ObjectNode partnerData) {
