@@ -122,6 +122,14 @@
 			<artifactId>java-jwt</artifactId>
 			<version>4.4.0</version>
 		</dependency>
+		<!-- LTI Deep Linking Response verification: a Tool signs its response JWT with its own
+		     key and publishes a JWKS for us to verify against (the reverse direction from the
+		     Platform-issued id_token). Nimbus models JWKSet/kid lookup first-class. -->
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<version>9.37.3</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-csv</artifactId>

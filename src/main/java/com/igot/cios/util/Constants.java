@@ -317,6 +317,41 @@ public class Constants {
     public static final String OIDC_JWKS_MALFORMED_KEY = "The platform's public signing key configuration contains an invalid key. "
             + "Please verify the configured toolPublicJwksUrl and the platform's signing keys.";
 
+    /** PoC placeholder: no per-Tool registry exists yet to look up which Tool a Deep Linking
+     *  Response came from, so every known Tool's JWKS is tried in turn, matching by {@code kid}.
+     *  Replace with a real per-partner JWKS lookup once that registry exists. */
+    public static final java.util.List<String> KNOWN_TOOL_JWKS_URLS = java.util.List.of(
+            "https://moodle.uat.karmayogibharat.net/enrol/lti/jwks.php",
+            "https://www.coursera.org/api/rest/v1/tool-lti/.well-known/jwks.json"
+    );
+
+    public static final String API_LTI_DEEPLINK_RETURN = "api.lti.deeplink.return";
+    public static final String MISSING_JWT = "Missing mandatory parameter: JWT";
+    public static final String DEEPLINK_JWT_MALFORMED = "Deep Linking Response JWT is malformed: ";
+    public static final String DEEPLINK_JWT_KID_NOT_FOUND = "Could not find a matching signing key for this JWT's kid in any known Tool's JWKS: ";
+    public static final String DEEPLINK_JWT_SIGNATURE_INVALID = "Deep Linking Response JWT signature verification failed";
+    public static final String DEEPLINK_JWT_EXPIRED = "Deep Linking Response JWT has expired";
+    public static final String DEEPLINK_WRONG_MESSAGE_TYPE = "Expected LtiDeepLinkingResponse message_type, got: ";
+    public static final String CONTENT_ITEMS_CLAIM = "https://purl.imsglobal.org/spec/lti-dl/claim/content_items";
+    public static final String DEEPLINK_MESSAGE_TYPE_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/message_type";
+    public static final String DEEPLINK_MESSAGE_TYPE_RESPONSE = "LtiDeepLinkingResponse";
+
+    /** Minimal AGS (Assignment and Grade Services) stub: no grade persistence exists, this
+     *  only serves the static shape some Tools (confirmed: Adobe Learning Manager) fetch
+     *  synchronously during launch after receiving the AGS endpoint claim - without a response
+     *  here that call 404s and the whole launch fails, even though no real gradebook exists.
+     *  IDs/URLs here must match the placeholder claim values emitted by LtiProtocolMapper
+     *  (sunbird-auth) - {@code lineitems}/{@code lineitem} claim fields. */
+    public static final String AGS_LINEITEM_CONTENT_TYPE = "application/vnd.ims.lis.v2.lineitem+json";
+    public static final String AGS_LINEITEMS_CONTAINER_CONTENT_TYPE = "application/vnd.ims.lis.v2.lineitemcontainer+json";
+    public static final String AGS_LINEITEM_BASE_URL = "https://portal.dev.karmayogibharat.net/api/ciosIntegration/lti/ags/lineitems";
+    public static final String AGS_PLACEHOLDER_LINEITEM_ID = "1";
+    public static final String AGS_PLACEHOLDER_LABEL = "iGOT LTI Resource";
+    public static final int AGS_PLACEHOLDER_SCORE_MAXIMUM = 100;
+    public static final String AGS_FIELD_ID = "id";
+    public static final String AGS_FIELD_LABEL = "label";
+    public static final String AGS_FIELD_SCORE_MAXIMUM = "scoreMaximum";
+
     private Constants() {
     }
 }
