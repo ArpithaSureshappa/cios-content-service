@@ -336,6 +336,22 @@ public class Constants {
     public static final String DEEPLINK_MESSAGE_TYPE_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/message_type";
     public static final String DEEPLINK_MESSAGE_TYPE_RESPONSE = "LtiDeepLinkingResponse";
 
+    /** Minimal AGS (Assignment and Grade Services) stub: no grade persistence exists, this
+     *  only serves the static shape some Tools (confirmed: Adobe Learning Manager) fetch
+     *  synchronously during launch after receiving the AGS endpoint claim - without a response
+     *  here that call 404s and the whole launch fails, even though no real gradebook exists.
+     *  IDs/URLs here must match the placeholder claim values emitted by LtiProtocolMapper
+     *  (sunbird-auth) - {@code lineitems}/{@code lineitem} claim fields. */
+    public static final String AGS_LINEITEM_CONTENT_TYPE = "application/vnd.ims.lis.v2.lineitem+json";
+    public static final String AGS_LINEITEMS_CONTAINER_CONTENT_TYPE = "application/vnd.ims.lis.v2.lineitemcontainer+json";
+    public static final String AGS_LINEITEM_BASE_URL = "https://portal.dev.karmayogibharat.net/api/ciosIntegration/lti/ags/lineitems";
+    public static final String AGS_PLACEHOLDER_LINEITEM_ID = "1";
+    public static final String AGS_PLACEHOLDER_LABEL = "iGOT LTI Resource";
+    public static final int AGS_PLACEHOLDER_SCORE_MAXIMUM = 100;
+    public static final String AGS_FIELD_ID = "id";
+    public static final String AGS_FIELD_LABEL = "label";
+    public static final String AGS_FIELD_SCORE_MAXIMUM = "scoreMaximum";
+
     private Constants() {
     }
 }
