@@ -333,6 +333,47 @@ public class Constants {
     public static final String DEEPLINK_MESSAGE_TYPE_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/message_type";
     public static final String DEEPLINK_MESSAGE_TYPE_RESPONSE = "LtiDeepLinkingResponse";
 
+    // --------------------------- LTI Advantage AGS ---------------------------
+    public static final String AGS_SCOPE_LINEITEM = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem";
+    public static final String AGS_SCOPE_LINEITEM_READONLY = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly";
+    public static final String AGS_SCOPE_RESULT_READONLY = "https://purl.imsglobal.org/spec/lti-ags/scope/result.readonly";
+    public static final String AGS_SCOPE_SCORE = "https://purl.imsglobal.org/spec/lti-ags/scope/score";
+
+    public static final String AGS_LINEITEM_CONTENT_TYPE = "application/vnd.ims.lis.v2.lineitem+json";
+    public static final String AGS_LINEITEMCONTAINER_CONTENT_TYPE = "application/vnd.ims.lis.v2.lineitemcontainer+json";
+    public static final String AGS_SCORE_CONTENT_TYPE = "application/vnd.ims.lis.v1.score+json";
+    public static final String AGS_RESULTCONTAINER_CONTENT_TYPE = "application/vnd.ims.lis.v2.resultcontainer+json";
+
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+    public static final String BEARER_PREFIX = "Bearer ";
+    public static final String MISSING_AUTHORIZATION_HEADER = "Missing or malformed Authorization header";
+    public static final String AGS_TOKEN_MALFORMED = "Bearer access token is malformed";
+    public static final String AGS_TOKEN_VERIFICATION_UNAVAILABLE = "Unable to verify bearer access token at this time";
+    public static final String AGS_TOKEN_SIGNING_KEY_NOT_FOUND = "Could not find a matching signing key for this bearer token's kid: ";
+    public static final String AGS_TOKEN_SIGNATURE_INVALID = "Bearer access token signature verification failed";
+    public static final String AGS_TOKEN_EXPIRED = "Bearer access token has expired";
+    public static final String AGS_TOKEN_ISSUER_MISMATCH = "Bearer access token issuer does not match the configured toolIssuer for partner: ";
+    public static final String AGS_TOKEN_NOT_AUTHORIZED_FOR_PARTNER = "Bearer access token is not authorized for partner: ";
+    public static final String AGS_TOKEN_MISSING_SCOPE = "Bearer access token is missing required scope: ";
+    public static final String AGS_EXP_CLAIM = "exp";
+    public static final String AGS_ISS_CLAIM = "iss";
+    public static final String AGS_AZP_CLAIM = "azp";
+    public static final String AGS_AUD_CLAIM = "aud";
+    public static final String AGS_SCOPE_CLAIM = "scope";
+
+    public static final String MISSING_LINE_ITEM_ID = "Missing mandatory parameter: lineItemId";
+    public static final String LINE_ITEM_NOT_FOUND = "Line item not found for id: ";
+    public static final String MISSING_SCORE_MAXIMUM = "Missing mandatory field: scoreMaximum";
+    public static final String MISSING_LABEL = "Missing mandatory field: label";
+    public static final String MISSING_USER_ID = "Missing mandatory field: userId";
+    public static final String RESOURCE_LINK_ID_QUERY_PARAM = "resource_link_id";
+    public static final String RESOURCE_ID_QUERY_PARAM = "resource_id";
+    public static final String TAG_QUERY_PARAM = "tag";
+    public static final String LIMIT_QUERY_PARAM = "limit";
+    public static final String USER_ID_QUERY_PARAM = "user_id";
+    public static final int DEFAULT_AGS_PAGE_LIMIT = 50;
+    public static final String LINK_HEADER = "Link";
+
     private Constants() {
     }
 }
