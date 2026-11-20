@@ -158,5 +158,8 @@ public class CbServerProperties {
     @Value("${sso.config.read.api}")
     private String ssoConfigReadApi;
 
+    @Value("${accesstoken.publickey.basepath}")
+    private String accessTokenPublicKeyBasePath;
+
 
 }

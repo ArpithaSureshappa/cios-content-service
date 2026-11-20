@@ -317,6 +317,20 @@ public class Constants {
     public static final String OIDC_JWKS_MALFORMED_KEY = "The platform's public signing key configuration contains an invalid key. "
             + "Please verify the configured toolPublicJwksUrl and the platform's signing keys.";
 
+    public static final String API_LTI_DEEP_LINKING_INITIATE = "api.lti.deeplinking.initiate";
+    public static final String DEEP_LINKING_URL = "deepLinkingUrl";
+    public static final String TOOL_PUBLIC_JWKS_URL = "toolPublicJwksUrl";
+    public static final String DEEP_LINK_URL = "deeplinkUrl";
+    public static final String LTI_DEEPLINK_HINT_PREFIX = "Deeplink:";
+    public static final String X_AUTH_TOKEN = "x-authenticated-user-token";
+    public static final String MISSING_DEEP_LINKING_URL = "Missing mandatory field: deepLinkingUrl for partner: ";
+    public static final String INVALID_DEEP_LINKING_URL = "deepLinkingUrl must be a valid HTTPS URL for partner: ";
+    public static final String MISSING_TOOL_PUBLIC_JWKS_URL = "Missing mandatory field: toolPublicJwksUrl for partner: ";
+    public static final String INVALID_TOOL_PUBLIC_JWKS_URL = "toolPublicJwksUrl must be a valid HTTPS URL for partner: ";
+    public static final String AUTHENTICATED_USER_NOT_FOUND = "Unable to identify the authenticated user for this request";
+    public static final String PARTNER_SERVICE_UNAVAILABLE = "Unable to retrieve partner details at this time, please try again later";
+    public static final String DEEP_LINK_URL_BUILD_FAILED = "Unable to build the LTI login initiation URL for partner: ";
+
     private Constants() {
     }
 }
