@@ -94,7 +94,7 @@ class LtiControllerTest {
         response.put(Constants.DEEP_LINK_URL, "https://tool.example.com/login?lti_message_hint=abc");
         Mockito.when(ltiService.initiateDeepLinking("COURSERA", "user-token")).thenReturn(response);
 
-        mockMvc.perform(get("/ciosIntegration/lti/deep-linking/initiate/{partnerCode}", "COURSERA")
+        mockMvc.perform(get("/ciosIntegration/lti/deeplinking/initiate/{partnerCode}", "COURSERA")
                         .header(Constants.X_AUTH_TOKEN, "user-token"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
@@ -112,7 +112,7 @@ class LtiControllerTest {
         response.setResponseCode(HttpStatus.UNAUTHORIZED);
         Mockito.when(ltiService.initiateDeepLinking(eq("COURSERA"), isNull())).thenReturn(response);
 
-        mockMvc.perform(get("/ciosIntegration/lti/deep-linking/initiate/{partnerCode}", "COURSERA"))
+        mockMvc.perform(get("/ciosIntegration/lti/deeplinking/initiate/{partnerCode}", "COURSERA"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.params.errmsg").value(Constants.AUTHENTICATED_USER_NOT_FOUND));
     }
@@ -124,7 +124,7 @@ class LtiControllerTest {
         response.setResponseCode(HttpStatus.NOT_FOUND);
         Mockito.when(ltiService.initiateDeepLinking("UNKNOWN", "user-token")).thenReturn(response);
 
-        mockMvc.perform(get("/ciosIntegration/lti/deep-linking/initiate/{partnerCode}", "UNKNOWN")
+        mockMvc.perform(get("/ciosIntegration/lti/deeplinking/initiate/{partnerCode}", "UNKNOWN")
                         .header(Constants.X_AUTH_TOKEN, "user-token"))
                 .andExpect(status().isNotFound());
     }
