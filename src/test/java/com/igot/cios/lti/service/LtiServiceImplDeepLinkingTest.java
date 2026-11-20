@@ -2,10 +2,10 @@ package com.igot.cios.lti.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.igot.cios.authentication.util.AccessTokenValidator;
 import com.igot.cios.dto.SBApiResponse;
 import com.igot.cios.plugins.DataTransformUtility;
 import com.igot.cios.util.Constants;
+import org.igot.common.auth.AccessTokenValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,7 +55,7 @@ class LtiServiceImplDeepLinkingTest {
 
     @BeforeEach
     void setUp() {
-        service = new LtiServiceImpl(dataTransformUtility, restTemplate, accessTokenValidator);
+        service = new LtiServiceImpl(dataTransformUtility, restTemplate, accessTokenValidator, null);
         lenient().when(accessTokenValidator.fetchUserIdFromAccessToken(USER_TOKEN)).thenReturn(ADMIN_ID);
     }
 

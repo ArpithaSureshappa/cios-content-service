@@ -55,7 +55,7 @@ class LtiServiceImplTest {
     @BeforeEach
     void setUp() {
         mapper = new ObjectMapper();
-        service = spy(new LtiServiceImpl(dataTransformUtility, restTemplate, null));
+        service = spy(new LtiServiceImpl(dataTransformUtility, restTemplate, null, null));
     }
 
     // ---------------- request-level validation ----------------
