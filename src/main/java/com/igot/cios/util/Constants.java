@@ -331,6 +331,44 @@ public class Constants {
     public static final String PARTNER_SERVICE_UNAVAILABLE = "Unable to retrieve partner details at this time, please try again later";
     public static final String DEEP_LINK_URL_BUILD_FAILED = "Unable to build the LTI login initiation URL for partner: ";
 
+    public static final String API_LTI_DEEPLINK_RETURN = "api.lti.deeplink.return";
+    public static final String DEEPLINK_JWT_PARAM = "JWT";
+    public static final String CONTENT_ITEMS = "contentItems";
+    public static final int MAX_DEEPLINK_JWT_LENGTH = 32768;
+    public static final String MISSING_JWT = "Missing mandatory parameter: JWT";
+    public static final String DEEPLINK_JWT_TOO_LONG = "Deep Linking response is too large";
+    public static final String INVALID_PARTNER_CODE = "Invalid partnerCode parameter";
+    public static final String DEEPLINK_JWT_MALFORMED = "Deep Linking response JWT is malformed";
+    public static final String DEEPLINK_JWT_UNSUPPORTED_ALG = "Deep Linking response JWT must be signed with RS256";
+    public static final String DEEPLINK_JWT_MISSING_KID = "Deep Linking response JWT has no key id (kid)";
+    public static final String DEEPLINK_JWT_KID_NOT_FOUND = "No matching signing key found for the Deep Linking response JWT";
+    public static final String DEEPLINK_JWT_SIGNATURE_INVALID = "Deep Linking response JWT signature verification failed";
+    public static final String DEEPLINK_JWKS_UNAVAILABLE = "Unable to retrieve the Tool's signing keys at this time, please try again later";
+    public static final String DEEPLINK_CLAIM_ISSUER_MISMATCH = "Deep Linking response JWT issuer does not match the registered client";
+    public static final String DEEPLINK_CLAIM_AUDIENCE_MISMATCH = "Deep Linking response JWT audience does not match the platform";
+    public static final String DEEPLINK_CLAIM_DEPLOYMENT_MISMATCH = "Deep Linking response JWT deployment id does not match the partner";
+    public static final String DEEPLINK_CLAIM_MESSAGE_TYPE_INVALID = "Deep Linking response JWT message type is not LtiDeepLinkingResponse";
+    public static final String DEEPLINK_CLAIM_VERSION_INVALID = "Deep Linking response JWT LTI version is not supported";
+    public static final String DEEPLINK_CLAIM_EXPIRED = "Deep Linking response JWT has expired";
+    public static final String DEEPLINK_CLAIM_ISSUED_IN_FUTURE = "Deep Linking response JWT issue time is invalid";
+    public static final String DEEPLINK_CLAIM_NONCE_MISSING = "Deep Linking response JWT has no nonce";
+    public static final String DEEPLINK_CLAIM_DATA_MISMATCH = "Deep Linking response JWT does not belong to the given partnerCode";
+    public static final String DEEPLINK_CONTENT_ITEMS_INVALID = "Deep Linking response must contain exactly one valid ltiResourceLink content item";
+    public static final String DEEPLINK_PROCESSING_FAILED = "Unable to process the Deep Linking response";
+    public static final String DEEPLINK_MESSAGE_TYPE_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/message_type";
+    public static final String DEEPLINK_VERSION_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/version";
+    public static final String DEEPLINK_DEPLOYMENT_ID_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/deployment_id";
+    public static final String DEEPLINK_DATA_CLAIM = "https://purl.imsglobal.org/spec/lti-dl/claim/data";
+    public static final String DEEPLINK_CONTENT_ITEMS_CLAIM = "https://purl.imsglobal.org/spec/lti-dl/claim/content_items";
+    public static final String DEEPLINK_MESSAGE_TYPE_RESPONSE = "LtiDeepLinkingResponse";
+    public static final String DEEPLINK_NONCE_CLAIM = "nonce";
+    public static final String DEEPLINK_ITEM_TYPE_FIELD = "type";
+    public static final String DEEPLINK_ITEM_TITLE_FIELD = "title";
+    public static final String DEEPLINK_ITEM_URL_FIELD = "url";
+    public static final String DEEPLINK_ITEM_CUSTOM_FIELD = "custom";
+    public static final String LTI_PROTOCOL_VERSION_CLAIM_VALUE = "1.3.0";
+    public static final String LTI_RESOURCE_LINK_ITEM_TYPE = "ltiResourceLink";
+
     private Constants() {
     }
 }

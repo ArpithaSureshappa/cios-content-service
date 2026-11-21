@@ -17,9 +17,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -127,5 +129,46 @@ class LtiControllerTest {
         mockMvc.perform(get("/ciosIntegration/lti/deeplinking/initiate/{partnerCode}", "UNKNOWN")
                         .header(Constants.X_AUTH_TOKEN, "user-token"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deepLinkingReturn_passesJwtAndPartnerCodeAndReturnsResultUncached() throws Exception {
+        SBApiResponse response = SBApiResponse.createDefaultResponse(Constants.API_LTI_DEEPLINK_RETURN);
+        response.put(Constants.PARTNER_CODE, "COURSERA");
+        Mockito.when(ltiService.handleDeepLinkingReturn("a.b.c", "COURSERA")).thenReturn(response);
+
+        mockMvc.perform(post("/ciosIntegration/lti/deeplink/return")
+                        .param("partnerCode", "COURSERA")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .content("JWT=a.b.c"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.id").value(Constants.API_LTI_DEEPLINK_RETURN))
+                .andExpect(jsonPath("$.result.partnerCode").value("COURSERA"));
+    }
+
+    @Test
+    void deepLinkingReturn_withoutParamsPassesNullsAndPropagatesStatus() throws Exception {
+        SBApiResponse response = SBApiResponse.createDefaultResponse(Constants.API_LTI_DEEPLINK_RETURN);
+        response.getParams().setStatus(Constants.FAILED);
+        response.getParams().setErrmsg(Constants.MISSING_JWT);
+        response.setResponseCode(HttpStatus.BAD_REQUEST);
+        Mockito.when(ltiService.handleDeepLinkingReturn(isNull(), isNull())).thenReturn(response);
+
+        mockMvc.perform(post("/ciosIntegration/lti/deeplink/return")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.params.errmsg").value(Constants.MISSING_JWT));
+    }
+
+    @Test
+    void deepLinkingReturn_rejectsAJsonBodyWithoutCallingTheService() throws Exception {
+        int httpStatus = mockMvc.perform(post("/ciosIntegration/lti/deeplink/return")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andReturn().getResponse().getStatus();
+
+        assertTrue(httpStatus >= 400, "a non-form body must not be accepted, got " + httpStatus);
+        Mockito.verifyNoInteractions(ltiService);
     }
 }

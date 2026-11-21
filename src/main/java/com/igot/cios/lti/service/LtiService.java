@@ -7,4 +7,6 @@ public interface LtiService {
     SBApiResponse testOidcConnection(String partnerCode, String loginHint, String messageHint);
 
     SBApiResponse initiateDeepLinking(String partnerCode, String userToken);
+
+    SBApiResponse handleDeepLinkingReturn(String jwt, String partnerCode);
 }
