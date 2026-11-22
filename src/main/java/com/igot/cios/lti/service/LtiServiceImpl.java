@@ -2,6 +2,7 @@ package com.igot.cios.lti.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.MissingNode;
 import com.igot.cios.dto.SBApiResponse;
 import com.igot.cios.plugins.DataTransformUtility;
 import com.igot.cios.util.Constants;
@@ -13,25 +14,23 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.igot.common.auth.AccessTokenValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import javax.net.ssl.SSLException;
 import java.io.IOException;
-import java.net.ConnectException;
-import java.net.HttpURLConnection;
-import java.net.InetAddress;
-import java.net.SocketTimeoutException;
-import java.net.URI;
-import java.net.URL;
-import java.net.UnknownHostException;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,14 +39,20 @@ public class LtiServiceImpl implements LtiService {
 
     private static final int MAX_REDIRECT_HOPS = 3;
     private static final int CONNECTION_TIMEOUT_MS = 5000;
+    private static final Pattern PARTNER_CODE_PATTERN = Pattern.compile("^[A-Za-z0-9._-]{1,100}$");
 
     private final DataTransformUtility dataTransformUtility;
     private final RestTemplate restTemplate;
+    private final AccessTokenValidator accessTokenValidator;
+    private final DeepLinkingJwtVerifier deepLinkingJwtVerifier;
 
     @Autowired
-    public LtiServiceImpl(DataTransformUtility dataTransformUtility, RestTemplate restTemplate) {
+    public LtiServiceImpl(DataTransformUtility dataTransformUtility, RestTemplate restTemplate,
+                          AccessTokenValidator accessTokenValidator, DeepLinkingJwtVerifier deepLinkingJwtVerifier) {
         this.dataTransformUtility = dataTransformUtility;
         this.restTemplate = restTemplate;
+        this.accessTokenValidator = accessTokenValidator;
+        this.deepLinkingJwtVerifier = deepLinkingJwtVerifier;
     }
 
     @Override
@@ -347,7 +352,7 @@ public class LtiServiceImpl implements LtiService {
                 .collect(Collectors.joining("; "));
     }
 
-    private boolean isDisallowedAddress(InetAddress address) {
+    static boolean isDisallowedAddress(InetAddress address) {
         return address.isLoopbackAddress() || address.isLinkLocalAddress()
                 || address.isSiteLocalAddress() || address.isAnyLocalAddress()
                 || address.isMulticastAddress();
@@ -429,5 +434,215 @@ public class LtiServiceImpl implements LtiService {
         connection.setConnectTimeout(CONNECTION_TIMEOUT_MS);
         connection.setReadTimeout(CONNECTION_TIMEOUT_MS);
         return connection;
+    }
+
+    /**
+     * API 1 - builds the Tool's OIDC login-initiation URL for an LTI 1.3 Deep Linking launch and returns it
+     * as {@code deeplinkUrl}. The partner's stored configuration is validated first. Nothing is persisted:
+     * the frontend simply navigates to the returned URL.
+     */
+    @Override
+    public SBApiResponse initiateDeepLinking(String partnerCode, String userToken) {
+        SBApiResponse response = SBApiResponse.createDefaultResponse(Constants.API_LTI_DEEP_LINKING_INITIATE);
+        if (StringUtils.isBlank(partnerCode)) {
+            return failedResponse(response, Constants.MISSING_PARTNER_CODE, HttpStatus.BAD_REQUEST);
+        }
+        // The admin's identity comes from the verified user token, never from a client-supplied user id.
+        String userId = accessTokenValidator.fetchUserIdFromAccessToken(userToken);
+        if (StringUtils.isBlank(userId)) {
+            return failedResponse(response, Constants.AUTHENTICATED_USER_NOT_FOUND, HttpStatus.UNAUTHORIZED);
+        }
+
+        JsonNode partnerResult;
+        try {
+            partnerResult = dataTransformUtility.fetchPartnerInfoUsingApi(partnerCode);
+        } catch (RuntimeException e) {
+            log.error("LtiServiceImpl::initiateDeepLinking: failed to fetch partner details for {}", partnerCode, e);
+            return failedResponse(response, Constants.PARTNER_SERVICE_UNAVAILABLE, HttpStatus.BAD_GATEWAY);
+        }
+        JsonNode partner = partnerResult == null ? MissingNode.getInstance() : partnerResult;
+        JsonNode partnerData = partner.path(Constants.DATA);
+        if (StringUtils.isBlank(partner.path(Constants.ID).asText("")) || partnerData.isMissingNode() || partnerData.isNull()) {
+            return failedResponse(response, Constants.PARTNER_NOT_FOUND + partnerCode, HttpStatus.NOT_FOUND);
+        }
+
+        JsonNode ltiConfig = partnerData.path(Constants.LTI_CONFIGURATION);
+        String configFailure = deepLinkingConfigFailure(partnerData, ltiConfig, partnerCode);
+        if (configFailure != null) {
+            return failedResponse(response, configFailure, HttpStatus.BAD_REQUEST);
+        }
+
+        String deepLinkUrl;
+        try {
+            deepLinkUrl = buildDeepLinkingLoginUrl(DeepLinkingConfig.from(ltiConfig), partnerCode, userId);
+        } catch (IllegalArgumentException e) {
+            log.error("LtiServiceImpl::initiateDeepLinking: failed to build the login initiation URL for partner {}", partnerCode, e);
+            return failedResponse(response, Constants.DEEP_LINK_URL_BUILD_FAILED + partnerCode, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        log.info("LtiServiceImpl::initiateDeepLinking: deep linking URL built for partner {}", partnerCode);
+        response.put(Constants.DEEP_LINK_URL, deepLinkUrl);
+        return response;
+    }
+
+    /**
+     * Reuses the OIDC-test configuration checks (protocol, version, login URL, clientId, deploymentId,
+     * redirectLaunchUrl, issuer) and adds what only Deep Linking needs: the Tool's deepLinkingUrl, which
+     * becomes target_link_uri, and its JWKS URL, without which the Tool's response could never be verified.
+     */
+    private String deepLinkingConfigFailure(JsonNode partnerData, JsonNode ltiConfig, String partnerCode) {
+        String failure = validateConfiguration(partnerData, ltiConfig, partnerCode);
+        if (failure != null) {
+            return failure;
+        }
+        failure = httpsUrlFailure(ltiConfig.path(Constants.DEEP_LINKING_URL).asText(""),
+                Constants.MISSING_DEEP_LINKING_URL, Constants.INVALID_DEEP_LINKING_URL, partnerCode);
+        if (failure != null) {
+            return failure;
+        }
+        return httpsUrlFailure(ltiConfig.path(Constants.TOOL_PUBLIC_JWKS_URL).asText(""),
+                Constants.MISSING_TOOL_PUBLIC_JWKS_URL, Constants.INVALID_TOOL_PUBLIC_JWKS_URL, partnerCode);
+    }
+
+    private String httpsUrlFailure(String url, String missingMessage, String invalidMessage, String partnerCode) {
+        if (StringUtils.isBlank(url)) {
+            return missingMessage + partnerCode;
+        }
+        return isValidHttpsUrl(url) ? null : invalidMessage + partnerCode;
+    }
+
+    /**
+     * Third-party-initiated OIDC login request. Values are percent-encoded strictly (UriUtils.encode) and
+     * appended to the partner's own URL unchanged (build(true)), so neither '+', '&' and '=' inside a value
+     * nor an already-encoded partner URL can be corrupted.
+     */
+    private String buildDeepLinkingLoginUrl(DeepLinkingConfig config, String partnerCode, String userId) {
+        return UriComponentsBuilder.fromUriString(config.oidcLoginInitiationUrl())
+                .queryParam(Constants.ISS, encode(config.platformIssuer()))
+                .queryParam(Constants.LOGIN_HINT, encode(userId))
+                .queryParam(Constants.TARGET_LINK_URI, encode(config.deepLinkingUrl()))
+                .queryParam(Constants.CLIENT_ID_QUERY_PARAM, encode(config.clientId()))
+                .queryParam(Constants.LTI_DEPLOYMENT_ID, encode(config.deploymentId()))
+                .queryParam(Constants.LTI_MESSAGE_HINT, encode(Constants.LTI_DEEPLINK_HINT_PREFIX + partnerCode))
+                .build(true)
+                .toUriString();
+    }
+
+    /**
+     * Receives the Tool's signed Deep Linking response. The partner code arrives both as a request
+     * param and inside the signed {@code data} claim; the verifier requires the two to agree. Nothing
+     * is stored yet - the validated selected item is returned.
+     */
+    @Override
+    public SBApiResponse handleDeepLinkingReturn(String jwt, String partnerCode) {
+        SBApiResponse response = SBApiResponse.createDefaultResponse(Constants.API_LTI_DEEPLINK_RETURN);
+        try {
+            validateIncomingRequest(jwt, partnerCode);
+        } catch (LtiReturnException e) {
+            return failedResponse(response, e.getMessage(), e.getStatus());
+        }
+
+        JsonNode partnerResult;
+        try {
+            partnerResult = dataTransformUtility.fetchPartnerInfoUsingApi(partnerCode);
+        } catch (RuntimeException e) {
+            log.error("LtiServiceImpl::handleDeepLinkingReturn: failed to fetch partner details for {}", partnerCode, e);
+            return failedResponse(response, Constants.PARTNER_SERVICE_UNAVAILABLE, HttpStatus.BAD_GATEWAY);
+        }
+        JsonNode partner = partnerResult == null ? MissingNode.getInstance() : partnerResult;
+        JsonNode partnerData = partner.path(Constants.DATA);
+        if (StringUtils.isBlank(partner.path(Constants.ID).asText("")) || partnerData.isMissingNode() || partnerData.isNull()) {
+            return failedResponse(response, Constants.PARTNER_NOT_FOUND + partnerCode, HttpStatus.NOT_FOUND);
+        }
+        JsonNode ltiConfig = partnerData.path(Constants.LTI_CONFIGURATION);
+        String configFailure = returnConfigFailure(partnerData, ltiConfig, partnerCode);
+        if (configFailure != null) {
+            return failedResponse(response, configFailure, HttpStatus.BAD_REQUEST);
+        }
+        try {
+            JsonNode contentItems = deepLinkingJwtVerifier.verifyAndExtractItems(jwt, partnerCode,
+                    ltiConfig.path(Constants.CLIENT_ID).asText(""),
+                    ltiConfig.path(Constants.DEPLOYMENT_ID).asText(""),
+                    ltiConfig.path(Constants.TOOL_ISSUER).asText(""),
+                    ltiConfig.path(Constants.TOOL_PUBLIC_JWKS_URL).asText(""));
+            log.info("LtiServiceImpl::handleDeepLinkingReturn: verified a Deep Linking response for partner {}", partnerCode);
+            response.put(Constants.PARTNER_CODE, partnerCode);
+            response.put(Constants.CONTENT_ITEMS, contentItems);
+            return response;
+        } catch (LtiReturnException e) {
+            log.error("LtiServiceImpl::handleDeepLinkingReturn: rejected response for partner {}: {}", partnerCode, e.getMessage());
+            return failedResponse(response, e.getMessage(), e.getStatus());
+        } catch (RuntimeException e) {
+            log.error("LtiServiceImpl::handleDeepLinkingReturn: unexpected failure for partner {}", partnerCode, e);
+            return failedResponse(response, Constants.DEEPLINK_PROCESSING_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Rejects a return call whose {@code JWT} or {@code partnerCode} is missing, oversized or malformed, before anything is fetched.
+     */
+    private void validateIncomingRequest(String jwt, String partnerCode) {
+        if (StringUtils.isBlank(jwt)) {
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.MISSING_JWT);
+        }
+        if (jwt.length() > Constants.MAX_DEEPLINK_JWT_LENGTH) {
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.DEEPLINK_JWT_TOO_LONG);
+        }
+        if (StringUtils.isBlank(partnerCode)) {
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.MISSING_PARTNER_CODE);
+        }
+        if (!PARTNER_CODE_PATTERN.matcher(partnerCode).matches()) {
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.INVALID_PARTNER_CODE);
+        }
+    }
+
+    /**
+     * What verifying a Tool's response needs from the partner's stored LTI configuration.
+     */
+    private String returnConfigFailure(JsonNode partnerData, JsonNode ltiConfig, String partnerCode) {
+        if (!Constants.LTI.equalsIgnoreCase(partnerData.path(Constants.PROTOCOL).asText(""))) {
+            return Constants.PARTNER_PROTOCOL_NOT_LTI + partnerCode;
+        }
+        if (ltiConfig.isMissingNode() || ltiConfig.isNull()) {
+            return Constants.LTI_CONFIGURATION_NOT_FOUND + partnerCode;
+        }
+        if (!Constants.LTI_VERSION_1_3.equals(ltiConfig.path(Constants.LTI_VERSION).asText(""))) {
+            return Constants.UNSUPPORTED_LTI_VERSION + partnerCode;
+        }
+        if (StringUtils.isBlank(ltiConfig.path(Constants.CLIENT_ID).asText(""))) {
+            return Constants.MISSING_CLIENT_ID + partnerCode;
+        }
+        if (StringUtils.isBlank(ltiConfig.path(Constants.DEPLOYMENT_ID).asText(""))) {
+            return Constants.MISSING_DEPLOYMENT_ID + partnerCode;
+        }
+        String failure = httpsUrlFailure(ltiConfig.path(Constants.TOOL_ISSUER).asText(""),
+                Constants.MISSING_TOOL_ISSUER, Constants.INVALID_TOOL_ISSUER, partnerCode);
+        if (failure != null) {
+            return failure;
+        }
+        return httpsUrlFailure(ltiConfig.path(Constants.TOOL_PUBLIC_JWKS_URL).asText(""),
+                Constants.MISSING_TOOL_PUBLIC_JWKS_URL, Constants.INVALID_TOOL_PUBLIC_JWKS_URL, partnerCode);
+    }
+
+    private static String encode(String value) {
+        return UriUtils.encode(value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Values for the login-initiation request. platformIssuer is the stored {@code toolIssuer} field: despite
+     * its name it holds the iGOT/Keycloak realm issuer (cb-pores fills it from lti.tool.issuer, and the OIDC test
+     * validates it against Keycloak's discovery document). The Tool's own issuer is not stored and not needed.
+     */
+    private record DeepLinkingConfig(String oidcLoginInitiationUrl, String deepLinkingUrl, String platformIssuer,
+                                     String clientId, String deploymentId) {
+
+        static DeepLinkingConfig from(JsonNode ltiConfig) {
+            return new DeepLinkingConfig(
+                    ltiConfig.path(Constants.OIDC_LOGIN_INITIATION_URL).asText(""),
+                    ltiConfig.path(Constants.DEEP_LINKING_URL).asText(""),
+                    ltiConfig.path(Constants.TOOL_ISSUER).asText(""),
+                    ltiConfig.path(Constants.CLIENT_ID).asText(""),
+                    ltiConfig.path(Constants.DEPLOYMENT_ID).asText(""));
+        }
     }
 }
