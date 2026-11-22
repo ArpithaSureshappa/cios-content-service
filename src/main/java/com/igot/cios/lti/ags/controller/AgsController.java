@@ -65,14 +65,13 @@ public class AgsController {
     }
 
 
-    @PostMapping("/lineitems/{lineItemId}/lineitem")
+    @PostMapping("/lineitems/1/lineitem/scores")
     public ResponseEntity<Void> publishScore(@PathVariable String partnerCode,
-                                               @PathVariable String lineItemId,
                                                @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
                                                @RequestBody ScoreDto scoreDto) {
         try {
-            log.info("AgsController::publishScore: partnerCode={}, lineItemId={}, payload={}",
-                    partnerCode, lineItemId, new ObjectMapper().writeValueAsString(scoreDto));
+            log.info("AgsController::publishScore: partnerCode={}, payload={}",
+                    partnerCode, new ObjectMapper().writeValueAsString(scoreDto));
         } catch (Exception e) {
             log.error("AgsController::publishScore: failed to serialize payload for logging", e);
         }
