@@ -68,41 +68,6 @@ public class AgsServiceImpl implements AgsService {
     }
 
     @Override
-    public Page<LineItemDto> listLineItems(String partnerCode, String resourceLinkId, String resourceId, String tag, int limit, int page) {
-        Pageable pageable = PageRequest.of(page, limit);
-        return lineItemRepository.findByFilters(partnerCode, resourceLinkId, resourceId, tag, pageable).map(this::toDto);
-    }
-
-    @Override
-    public LineItemDto getLineItem(String partnerCode, String lineItemId) {
-        return toDto(findLineItemOrThrow(partnerCode, lineItemId));
-    }
-
-    @Override
-    public LineItemDto updateLineItem(String partnerCode, String lineItemId, LineItemDto lineItemDto) {
-        LtiLineItemEntity entity = findLineItemOrThrow(partnerCode, lineItemId);
-        if (lineItemDto.getScoreMaximum() != null) {
-            entity.setScoreMaximum(lineItemDto.getScoreMaximum());
-        }
-        if (StringUtils.isNotBlank(lineItemDto.getLabel())) {
-            entity.setLabel(lineItemDto.getLabel());
-        }
-        entity.setResourceId(lineItemDto.getResourceId());
-        entity.setResourceLinkId(lineItemDto.getResourceLinkId());
-        entity.setTag(lineItemDto.getTag());
-        entity.setStartDateTime(parseTimestamp(lineItemDto.getStartDateTime()));
-        entity.setEndDateTime(parseTimestamp(lineItemDto.getEndDateTime()));
-        entity.setUpdatedDate(new Timestamp(System.currentTimeMillis()));
-        lineItemRepository.save(entity);
-        return toDto(entity);
-    }
-
-    @Override
-    public void deleteLineItem(String partnerCode, String lineItemId) {
-        lineItemRepository.delete(findLineItemOrThrow(partnerCode, lineItemId));
-    }
-
-    @Override
     public void publishScore(String partnerCode, String lineItemId, ScoreDto scoreDto) {
         findLineItemOrThrow(partnerCode, lineItemId);
         if (StringUtils.isBlank(scoreDto.getUserId())) {
@@ -127,18 +92,6 @@ public class AgsServiceImpl implements AgsService {
         }
         entity.setUpdatedDate(now);
         scoreRepository.save(entity);
-    }
-
-    @Override
-    public Page<ResultDto> listResults(String partnerCode, String lineItemId, String userId, int limit, int page) {
-        LtiLineItemEntity lineItem = findLineItemOrThrow(partnerCode, lineItemId);
-        Pageable pageable = PageRequest.of(page, limit);
-        if (StringUtils.isNotBlank(userId)) {
-            return scoreRepository.findByLineItemIdAndUserId(lineItemId, userId)
-                    .map(score -> new PageImpl<>(List.of(toResultDto(score, lineItem)), pageable, 1))
-                    .orElseGet(() -> new PageImpl<>(List.of(), pageable, 0));
-        }
-        return scoreRepository.findByLineItemId(lineItemId, pageable).map(score -> toResultDto(score, lineItem));
     }
 
     private LtiLineItemEntity findLineItemOrThrow(String partnerCode, String lineItemId) {

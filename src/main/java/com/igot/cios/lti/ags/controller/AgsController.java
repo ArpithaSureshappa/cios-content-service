@@ -1,5 +1,6 @@
 package com.igot.cios.lti.ags.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.igot.cios.lti.ags.dto.LineItemDto;
 import com.igot.cios.lti.ags.dto.ResultDto;
 import com.igot.cios.lti.ags.dto.ScoreDto;
@@ -7,6 +8,7 @@ import com.igot.cios.lti.ags.exception.AgsApiException;
 import com.igot.cios.lti.ags.security.AgsBearerTokenValidator;
 import com.igot.cios.lti.ags.service.AgsService;
 import com.igot.cios.util.Constants;
+import com.nimbusds.jose.JWSObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -39,7 +41,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/ciosIntegration/lti/ags/{partnerCode}")
+@RequestMapping("/ciosIntegration/lti/ags")
 public class AgsController {
 
     private final AgsService agsService;
@@ -62,92 +64,33 @@ public class AgsController {
                 .body(created);
     }
 
-    @GetMapping("/lineitems")
-    public ResponseEntity<List<LineItemDto>> listLineItems(@PathVariable String partnerCode,
-                                                             @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
-                                                             @RequestParam(value = "resource_link_id", required = false) String resourceLinkId,
-                                                             @RequestParam(value = "resource_id", required = false) String resourceId,
-                                                             @RequestParam(value = "tag", required = false) String tag,
-                                                             @RequestParam(value = "limit", required = false, defaultValue = "" + Constants.DEFAULT_AGS_PAGE_LIMIT) int limit,
-                                                             @RequestParam(value = "page", required = false, defaultValue = "0") int page) {
-        bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_LINEITEM, Constants.AGS_SCOPE_LINEITEM_READONLY);
-        Page<LineItemDto> result = agsService.listLineItems(partnerCode, resourceLinkId, resourceId, tag, limit, page);
 
-        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(Constants.AGS_LINEITEMCONTAINER_CONTENT_TYPE));
-        if (result.hasNext()) {
-            String nextUrl = UriComponentsBuilder.fromUriString("/ciosIntegration/lti/ags/" + partnerCode + "/lineitems")
-                    .queryParamIfPresent("resource_link_id", java.util.Optional.ofNullable(resourceLinkId))
-                    .queryParamIfPresent("resource_id", java.util.Optional.ofNullable(resourceId))
-                    .queryParamIfPresent("tag", java.util.Optional.ofNullable(tag))
-                    .queryParam("limit", limit)
-                    .queryParam("page", page + 1)
-                    .build().encode().toUriString();
-            response.header(Constants.LINK_HEADER, "<" + nextUrl + ">; rel=\"next\"");
-        }
-        return response.body(result.getContent());
-    }
-
-    @GetMapping("/lineitems/{lineItemId}")
-    public ResponseEntity<LineItemDto> getLineItem(@PathVariable String partnerCode,
-                                                     @PathVariable String lineItemId,
-                                                     @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization) {
-        bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_LINEITEM, Constants.AGS_SCOPE_LINEITEM_READONLY);
-        LineItemDto dto = agsService.getLineItem(partnerCode, lineItemId);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(Constants.AGS_LINEITEM_CONTENT_TYPE)).body(dto);
-    }
-
-    @PutMapping("/lineitems/{lineItemId}")
-    public ResponseEntity<LineItemDto> updateLineItem(@PathVariable String partnerCode,
-                                                        @PathVariable String lineItemId,
-                                                        @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
-                                                        @RequestBody LineItemDto lineItemDto) {
-        bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_LINEITEM);
-        LineItemDto updated = agsService.updateLineItem(partnerCode, lineItemId, lineItemDto);
-        return ResponseEntity.ok().contentType(MediaType.parseMediaType(Constants.AGS_LINEITEM_CONTENT_TYPE)).body(updated);
-    }
-
-    @DeleteMapping("/lineitems/{lineItemId}")
-    public ResponseEntity<Void> deleteLineItem(@PathVariable String partnerCode,
-                                                 @PathVariable String lineItemId,
-                                                 @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization) {
-        bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_LINEITEM);
-        agsService.deleteLineItem(partnerCode, lineItemId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/lineitems/{lineItemId}/scores")
+    @PostMapping("/lineitems/{lineItemId}/lineitem")
     public ResponseEntity<Void> publishScore(@PathVariable String partnerCode,
                                                @PathVariable String lineItemId,
                                                @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
                                                @RequestBody ScoreDto scoreDto) {
-        bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_SCORE);
-        agsService.publishScore(partnerCode, lineItemId, scoreDto);
-        return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/lineitems/{lineItemId}/results")
-    public ResponseEntity<List<ResultDto>> listResults(@PathVariable String partnerCode,
-                                                          @PathVariable String lineItemId,
-                                                          @RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
-                                                          @RequestParam(value = "user_id", required = false) String userId,
-                                                          @RequestParam(value = "limit", required = false, defaultValue = "" + Constants.DEFAULT_AGS_PAGE_LIMIT) int limit,
-                                                          @RequestParam(value = "page", required = false, defaultValue = "0") int page) {
-        bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_RESULT_READONLY);
-        Page<ResultDto> result = agsService.listResults(partnerCode, lineItemId, userId, limit, page);
-
-        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(Constants.AGS_RESULTCONTAINER_CONTENT_TYPE));
-        if (result.hasNext()) {
-            String nextUrl = UriComponentsBuilder.fromUriString(
-                            "/ciosIntegration/lti/ags/" + partnerCode + "/lineitems/" + lineItemId + "/results")
-                    .queryParamIfPresent("user_id", java.util.Optional.ofNullable(userId))
-                    .queryParam("limit", limit)
-                    .queryParam("page", page + 1)
-                    .build().encode().toUriString();
-            response.header(Constants.LINK_HEADER, "<" + nextUrl + ">; rel=\"next\"");
+        try {
+            log.info("AgsController::publishScore: partnerCode={}, lineItemId={}, payload={}",
+                    partnerCode, lineItemId, new ObjectMapper().writeValueAsString(scoreDto));
+        } catch (Exception e) {
+            log.error("AgsController::publishScore: failed to serialize payload for logging", e);
         }
-        return response.body(result.getContent());
+
+        String jwtToken = (authorization != null && authorization.startsWith(Constants.BEARER_PREFIX))
+                ? authorization.substring(Constants.BEARER_PREFIX.length()).trim()
+                : authorization;
+        log.info("AgsController::publishScore: jwtToken={}", jwtToken);
+
+        try {
+            JWSObject jwsObject = JWSObject.parse(jwtToken);
+            log.info("AgsController::publishScore: decoded JWT header={}, claims={}",
+                    jwsObject.getHeader().toString(), jwsObject.getPayload().toString());
+        } catch (Exception e) {
+            log.error("AgsController::publishScore: failed to decode JWT, continuing anyway", e);
+        }
+
+        return ResponseEntity.ok().build();
     }
 
     @ExceptionHandler(AgsApiException.class)
