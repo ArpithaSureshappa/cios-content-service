@@ -128,7 +128,7 @@ public class AgsServiceImpl implements AgsService {
     }
 
     private String buildLineItemUrl(String partnerCode, String lineItemId) {
-        return cbServerProperties.getCiosPublicBaseUrl() + "/ciosIntegration/lti/ags/" + partnerCode + "/lineitems/" + lineItemId;
+        return "/ciosIntegration/lti/ags/" + partnerCode + "/lineitems/" + lineItemId;
     }
 
     private Timestamp parseTimestamp(String isoDateTime) {

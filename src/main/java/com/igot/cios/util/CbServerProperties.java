@@ -44,9 +44,6 @@ public class CbServerProperties {
     @Value("${partner.read.path}")
     private String partnerReadEndPoint;
 
-    @Value("${cios.public.base.url}")
-    private String ciosPublicBaseUrl;
-
     @Value("${partner.create.update.path}")
     private String partnerCreateEndPoint;
 
