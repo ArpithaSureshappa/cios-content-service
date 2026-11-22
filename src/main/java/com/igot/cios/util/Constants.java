@@ -374,16 +374,15 @@ public class Constants {
             "https://www.coursera.org/api/rest/v1/tool-lti/.well-known/jwks.json"
     );
 
-    public static final String API_LTI_DEEPLINK_RETURN = "api.lti.deeplink.return";
-    public static final String MISSING_JWT = "Missing mandatory parameter: JWT";
-    public static final String DEEPLINK_JWT_MALFORMED = "Deep Linking Response JWT is malformed: ";
-    public static final String DEEPLINK_JWT_KID_NOT_FOUND = "Could not find a matching signing key for this JWT's kid in any known Tool's JWKS: ";
-    public static final String DEEPLINK_JWT_SIGNATURE_INVALID = "Deep Linking Response JWT signature verification failed";
+    // Single-arg handleDeepLinkingReturn(jwt) flow's own wording - kept distinct from the
+    // partner-scoped DeepLinkingJwtVerifier flow's constants above, which use the same claim
+    // names/API id but slightly different messages for the fields that differ between the two.
+    public static final String DEEPLINK_RETURN_JWT_MALFORMED = "Deep Linking Response JWT is malformed: ";
+    public static final String DEEPLINK_RETURN_JWT_KID_NOT_FOUND = "Could not find a matching signing key for this JWT's kid in any known Tool's JWKS: ";
+    public static final String DEEPLINK_RETURN_JWT_SIGNATURE_INVALID = "Deep Linking Response JWT signature verification failed";
     public static final String DEEPLINK_JWT_EXPIRED = "Deep Linking Response JWT has expired";
     public static final String DEEPLINK_WRONG_MESSAGE_TYPE = "Expected LtiDeepLinkingResponse message_type, got: ";
     public static final String CONTENT_ITEMS_CLAIM = "https://purl.imsglobal.org/spec/lti-dl/claim/content_items";
-    public static final String DEEPLINK_MESSAGE_TYPE_CLAIM = "https://purl.imsglobal.org/spec/lti/claim/message_type";
-    public static final String DEEPLINK_MESSAGE_TYPE_RESPONSE = "LtiDeepLinkingResponse";
 
     // --------------------------- LTI Advantage AGS ---------------------------
     public static final String AGS_SCOPE_LINEITEM = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem";

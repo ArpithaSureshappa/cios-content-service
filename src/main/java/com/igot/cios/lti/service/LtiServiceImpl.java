@@ -143,7 +143,7 @@ public class LtiServiceImpl implements LtiService {
             jwsObject = JWSObject.parse(jwt);
         } catch (Exception e) {
             log.error("LtiServiceImpl::handleDeepLinkingReturn: failed to parse JWT", e);
-            return failedResponse(response, Constants.DEEPLINK_JWT_MALFORMED + e.getMessage(), HttpStatus.BAD_REQUEST);
+            return failedResponse(response, Constants.DEEPLINK_RETURN_JWT_MALFORMED + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
 
         String kid = jwsObject.getHeader().getKeyID();
@@ -162,24 +162,24 @@ public class LtiServiceImpl implements LtiService {
             }
         }
         if (matchedKey == null) {
-            return failedResponse(response, Constants.DEEPLINK_JWT_KID_NOT_FOUND + kid, HttpStatus.BAD_REQUEST);
+            return failedResponse(response, Constants.DEEPLINK_RETURN_JWT_KID_NOT_FOUND + kid, HttpStatus.BAD_REQUEST);
         }
 
         try {
             JWSVerifier verifier = new RSASSAVerifier(((RSAKey) matchedKey).toRSAPublicKey());
             if (!jwsObject.verify(verifier)) {
-                return failedResponse(response, Constants.DEEPLINK_JWT_SIGNATURE_INVALID, HttpStatus.BAD_REQUEST);
+                return failedResponse(response, Constants.DEEPLINK_RETURN_JWT_SIGNATURE_INVALID, HttpStatus.BAD_REQUEST);
             }
         } catch (Exception e) {
             log.error("LtiServiceImpl::handleDeepLinkingReturn: signature verification failed", e);
-            return failedResponse(response, Constants.DEEPLINK_JWT_SIGNATURE_INVALID, HttpStatus.BAD_REQUEST);
+            return failedResponse(response, Constants.DEEPLINK_RETURN_JWT_SIGNATURE_INVALID, HttpStatus.BAD_REQUEST);
         }
 
         JsonNode claims;
         try {
             claims = new ObjectMapper().readTree(jwsObject.getPayload().toString());
         } catch (Exception e) {
-            return failedResponse(response, Constants.DEEPLINK_JWT_MALFORMED + e.getMessage(), HttpStatus.BAD_REQUEST);
+            return failedResponse(response, Constants.DEEPLINK_RETURN_JWT_MALFORMED + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
 
         long exp = claims.path("exp").asLong(0);
