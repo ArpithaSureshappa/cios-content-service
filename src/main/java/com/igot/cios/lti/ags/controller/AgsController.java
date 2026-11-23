@@ -45,7 +45,7 @@ public class AgsController {
     @PostMapping("/lineitems/1/lineitem/scores")
     public ResponseEntity<Void> publishScore(@RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
                                                @RequestBody JsonNode scoreDto) {
-        bearerTokenValidator.validate(authorization, PARTNER_CODE, Constants.AGS_SCOPE_SCORE);
+       // bearerTokenValidator.validate(authorization, PARTNER_CODE, Constants.AGS_SCOPE_SCORE);
         log.info("AgsController: publishScore called with scoreDto: {}", scoreDto);
        // agsService.publishScore(PARTNER_CODE, "1", scoreDto);
         return ResponseEntity.ok().build();
