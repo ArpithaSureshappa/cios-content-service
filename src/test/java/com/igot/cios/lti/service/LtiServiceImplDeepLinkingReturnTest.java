@@ -1,7 +1,6 @@
 package com.igot.cios.lti.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cios.dto.SBApiResponse;
 import com.igot.cios.plugins.DataTransformUtility;
@@ -20,7 +19,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +30,7 @@ class LtiServiceImplDeepLinkingReturnTest {
     private static final String PLATFORM_ISSUER = "https://portal.example.org/auth/realms/sunbird";
     private static final String JWKS_URL = "https://tool.example.com/.well-known/jwks.json";
     private static final String JWT = "header.payload.signature";
+    private static final String SPEC = "[{\"operation\":\"shift\",\"spec\":{\"title\":\"content.name\"}}]";
 
     @Mock
     private DataTransformUtility dataTransformUtility;
@@ -67,6 +67,11 @@ class LtiServiceImplDeepLinkingReturnTest {
         if (lti != null) {
             data.set(Constants.LTI_CONFIGURATION, lti);
         }
+        try {
+            result.set(Constants.TRANSFORM_CONTENT_VIA_API, mapper.readTree(SPEC));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
         return result;
     }
 
@@ -83,12 +88,23 @@ class LtiServiceImplDeepLinkingReturnTest {
 
     // ---------- positive ----------
 
-    @Test
-    void validResponse_returnsPartnerAndContentItems() {
-        givenPartner(validLti());
-        ArrayNode items = mapper.createArrayNode().add(mapper.createObjectNode().put("title", "AI For Everyone"));
+    private ObjectNode rawItem() {
+        return mapper.createObjectNode().put("title", "AI For Everyone");
+    }
+
+    private void givenVerifiedItem(ObjectNode rawItem) {
         when(verifier.verifyAndExtractItems(JWT, PARTNER_CODE, "portal", PARTNER_CODE, PLATFORM_ISSUER, JWKS_URL))
-                .thenReturn(items);
+                .thenReturn(mapper.createArrayNode().add(rawItem));
+    }
+
+    @Test
+    void validResponse_returnsPartnerAndTheItemMappedByThePartnersSpec() {
+        givenPartner(validLti());
+        ObjectNode rawItem = rawItem();
+        givenVerifiedItem(rawItem);
+        ObjectNode mapped = mapper.createObjectNode();
+        mapped.putObject(Constants.CONTENT).put("name", "AI For Everyone");
+        when(dataTransformUtility.transformData(eq(rawItem), anyList())).thenReturn(mapped);
 
         SBApiResponse response = service.handleDeepLinkingReturn(JWT, PARTNER_CODE);
 
@@ -96,7 +112,62 @@ class LtiServiceImplDeepLinkingReturnTest {
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(Constants.API_LTI_DEEPLINK_RETURN, response.getId());
         assertEquals(PARTNER_CODE, response.get(Constants.PARTNER_CODE));
-        assertSame(items, response.get(Constants.CONTENT_ITEMS));
+        assertEquals(mapped, response.get(Constants.CONTENT_DATA));
+    }
+
+    // ---------- mapping with the partner's spec ----------
+
+    @Test
+    void partnerWithoutASpec_isBadRequestAndNothingIsReturned() {
+        ObjectNode partnerWithoutSpec = partner(Constants.LTI, validLti());
+        partnerWithoutSpec.remove(Constants.TRANSFORM_CONTENT_VIA_API);
+        when(dataTransformUtility.fetchPartnerInfoUsingApi(PARTNER_CODE)).thenReturn(partnerWithoutSpec);
+        givenVerifiedItem(rawItem());
+
+        SBApiResponse response = service.handleDeepLinkingReturn(JWT, PARTNER_CODE);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.TRANSFORM_SPEC_MISSING + PARTNER_CODE, response.getParams().getErrmsg());
+        assertNull(response.get(Constants.CONTENT_DATA));
+        verify(dataTransformUtility, never()).transformData(any(), anyList());
+    }
+
+    @Test
+    void specThatCannotBeApplied_isBadRequestWithASafeMessage() {
+        givenPartner(validLti());
+        givenVerifiedItem(rawItem());
+        when(dataTransformUtility.transformData(any(), anyList())).thenThrow(new IllegalArgumentException("secret detail"));
+
+        SBApiResponse response = service.handleDeepLinkingReturn(JWT, PARTNER_CODE);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.TRANSFORM_SPEC_FAILED + PARTNER_CODE, response.getParams().getErrmsg());
+        assertNull(response.get(Constants.CONTENT_DATA));
+    }
+
+    @Test
+    void specThatProducesNoContentObject_isBadRequest() {
+        givenPartner(validLti());
+        givenVerifiedItem(rawItem());
+        when(dataTransformUtility.transformData(any(), anyList())).thenReturn(mapper.createObjectNode().put("other", "x"));
+
+        SBApiResponse response = service.handleDeepLinkingReturn(JWT, PARTNER_CODE);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.TRANSFORM_NO_CONTENT_OBJECT + PARTNER_CODE, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void transformThatReturnsNothing_isBadRequest() {
+        givenPartner(validLti());
+        givenVerifiedItem(rawItem());
+        when(dataTransformUtility.transformData(any(), anyList())).thenReturn(null);
+
+        SBApiResponse response = service.handleDeepLinkingReturn(JWT, PARTNER_CODE);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.TRANSFORM_NO_CONTENT_OBJECT + PARTNER_CODE, response.getParams().getErrmsg());
     }
 
     // ---------- request validation: 400 ----------
@@ -261,7 +332,7 @@ class LtiServiceImplDeepLinkingReturnTest {
         assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.DEEPLINK_JWT_SIGNATURE_INVALID, response.getParams().getErrmsg());
-        assertFalse(response.containsKey(Constants.CONTENT_ITEMS));
+        assertFalse(response.containsKey(Constants.CONTENT_DATA));
     }
 
     @Test

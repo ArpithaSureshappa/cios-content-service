@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.client.RestTemplate;
@@ -59,17 +60,31 @@ class LtiDeepLinkingReturnFlowTest {
 
     @BeforeEach
     void setUp() {
-        DataTransformUtility dataTransformUtility = mock(DataTransformUtility.class);
-        when(dataTransformUtility.fetchPartnerInfoUsingApi(PARTNER_CODE)).thenReturn(courseraPartner());
+        DataTransformUtility dataTransformUtility = spy(new DataTransformUtility());
+        ReflectionTestUtils.setField(dataTransformUtility, "objectMapper", mapper);
+        doReturn(courseraPartner()).when(dataTransformUtility).fetchPartnerInfoUsingApi(PARTNER_CODE);
         DeepLinkingJwtVerifier verifier = spy(new DeepLinkingJwtVerifier());
         doReturn(new JWKSet(toolKey.toPublicJWK()).toString()).when(verifier).fetchJwks(JWKS_URL);
         LtiServiceImpl service = new LtiServiceImpl(dataTransformUtility, mock(RestTemplate.class), null, verifier);
         mockMvc = MockMvcBuilders.standaloneSetup(new LtiController(service)).build();
     }
 
+    /** The spec saved on the partner: Coursera's item to iGOT content. */
+    private static final String COURSERA_SPEC = """
+            [{"operation":"shift","spec":{
+              "title":"content.name","text":"content.description","url":"content.redirectUrl",
+              "custom":{"course_id":["content.externalId","content.providerCustomClaim.course_id"],
+                        "*":"content.providerCustomClaim.&"}}}]
+            """;
+
     private ObjectNode courseraPartner() {
         ObjectNode partner = mapper.createObjectNode();
         partner.put(Constants.ID, "7c1f1c2e-0000-4000-8000-000000000001");
+        try {
+            partner.set(Constants.TRANSFORM_CONTENT_VIA_API, mapper.readTree(COURSERA_SPEC));
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
         ObjectNode data = partner.putObject(Constants.DATA);
         data.put(Constants.PROTOCOL, Constants.LTI);
         ObjectNode lti = data.putObject(Constants.LTI_CONFIGURATION);
@@ -120,7 +135,7 @@ class LtiDeepLinkingReturnFlowTest {
     }
 
     @Test
-    void formPostWithJwtAndPartnerCode_returnsTheContentItemsLikeTheLiveResponse() throws Exception {
+    void formPostWithJwtAndPartnerCode_returnsTheItemMappedToIgotContent() throws Exception {
         mockMvc.perform(post(RETURN_PATH)
                         .param("partnerCode", PARTNER_CODE)
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
@@ -131,15 +146,20 @@ class LtiDeepLinkingReturnFlowTest {
                 .andExpect(jsonPath("$.params.status").value("success"))
                 .andExpect(jsonPath("$.responseCode").value("OK"))
                 .andExpect(jsonPath("$.result.partnerCode").value(PARTNER_CODE))
-                .andExpect(jsonPath("$.result.contentItems.length()").value(1))
-                .andExpect(jsonPath("$.result.contentItems[0].type").value("ltiResourceLink"))
-                .andExpect(jsonPath("$.result.contentItems[0].title").value("Data Analysis with R Programming"))
-                .andExpect(jsonPath("$.result.contentItems[0].url").value("https://www.coursera.org/api/rest/v1/tool-lti/launch"))
-                .andExpect(jsonPath("$.result.contentItems[0].custom.course_id").value("joRZVwp9Eeun_RJEc0KNDw"))
-                .andExpect(jsonPath("$.result.contentItems[0].custom.organization_id").value("38fNLqIAQ5C9FXQVtAwAOQ"))
-                .andExpect(jsonPath("$.result.contentItems[0].custom.program_id").value("XKGCT3amR96hgk92pufecQ"))
-                .andExpect(jsonPath("$.result.contentItems[0].lineItem.scoreMaximum").value(100.0))
-                .andExpect(jsonPath("$.result.contentItems[0].window.targetName").value("_blank"));
+                .andExpect(jsonPath("$.result.contentData").isMap())
+                .andExpect(jsonPath("$.result.contentData.content.name").value("Data Analysis with R Programming"))
+                .andExpect(jsonPath("$.result.contentData.content.description")
+                        .value("This course is the seventh course in the Google Data Analytics Certificate."))
+                .andExpect(jsonPath("$.result.contentData.content.redirectUrl")
+                        .value("https://www.coursera.org/api/rest/v1/tool-lti/launch"))
+                .andExpect(jsonPath("$.result.contentData.content.externalId").value("joRZVwp9Eeun_RJEc0KNDw"))
+                .andExpect(jsonPath("$.result.contentData.content.providerCustomClaim.course_id")
+                        .value("joRZVwp9Eeun_RJEc0KNDw"))
+                .andExpect(jsonPath("$.result.contentData.content.providerCustomClaim.organization_id")
+                        .value("38fNLqIAQ5C9FXQVtAwAOQ"))
+                .andExpect(jsonPath("$.result.contentData.content.providerCustomClaim.program_id")
+                        .value("XKGCT3amR96hgk92pufecQ"))
+                .andExpect(jsonPath("$.result.contentData.type").doesNotExist());
     }
 
     @Test
@@ -150,7 +170,7 @@ class LtiDeepLinkingReturnFlowTest {
                         .content("JWT=" + signedResponse("Deeplink:SOME-OTHER-PARTNER")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.params.errmsg").value(Constants.DEEPLINK_CLAIM_DATA_MISMATCH))
-                .andExpect(jsonPath("$.result.contentItems").doesNotExist());
+                .andExpect(jsonPath("$.result.contentData").doesNotExist());
     }
 
     @Test

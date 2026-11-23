@@ -1,5 +1,6 @@
 package com.igot.cios.lti.service;
 
+import com.bazaarvoice.jolt.JsonUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.igot.cios.dto.SBApiResponse;
@@ -444,7 +445,7 @@ public class LtiServiceImpl implements LtiService {
     /**
      * Receives the Tool's signed Deep Linking response. The partner code arrives both as a request
      * param and inside the signed {@code data} claim; the verifier requires the two to agree. Nothing
-     * is stored yet - the validated selected item is returned.
+     * is stored yet - the validated selected item is returned, mapped to iGOT content by the partner's own spec.
      */
     @Override
     public SBApiResponse handleDeepLinkingReturn(String jwt, String partnerCode) {
@@ -480,7 +481,7 @@ public class LtiServiceImpl implements LtiService {
                     ltiConfig.path(Constants.TOOL_PUBLIC_JWKS_URL).asText(""));
             log.info("LtiServiceImpl::handleDeepLinkingReturn: verified a Deep Linking response for partner {}", partnerCode);
             response.put(Constants.PARTNER_CODE, partnerCode);
-            response.put(Constants.CONTENT_ITEMS, contentItems);
+            response.put(Constants.CONTENT_DATA, mapItemWithPartnerSpec(contentItems.get(0), partner, partnerCode));
             return response;
         } catch (LtiReturnException e) {
             log.error("LtiServiceImpl::handleDeepLinkingReturn: rejected response for partner {}: {}", partnerCode, e.getMessage());
@@ -489,6 +490,40 @@ public class LtiServiceImpl implements LtiService {
             log.error("LtiServiceImpl::handleDeepLinkingReturn: unexpected failure for partner {}", partnerCode, e);
             return failedResponse(response, Constants.DEEPLINK_PROCESSING_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * Turns the verified item into iGOT content, using the Jolt spec the partner record already carries
+     * ({@code transformContentViaApi}), so the caller receives content in iGOT format and not the Tool's own shape.
+     * The verifier guarantees the response holds exactly one item, so a single mapped item is returned.
+     *
+     * @throws LtiReturnException with status 400 when the partner has no spec, the spec cannot be applied, or the item
+     *                            does not produce a {@code content} object
+     */
+    private JsonNode mapItemWithPartnerSpec(JsonNode rawItem, JsonNode partner, String partnerCode) {
+        List<Object> chainrSpec = chainrSpecOf(partner.path(Constants.TRANSFORM_CONTENT_VIA_API), partnerCode);
+        return mapItemWithSpec(rawItem, chainrSpec, partnerCode);
+    }
+
+    private List<Object> chainrSpecOf(JsonNode spec, String partnerCode) {
+        if (!spec.isArray() || spec.isEmpty()) {
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.TRANSFORM_SPEC_MISSING + partnerCode);
+        }
+        return JsonUtils.jsonToList(spec.toString());
+    }
+
+    private JsonNode mapItemWithSpec(JsonNode rawItem, List<Object> chainrSpec, String partnerCode) {
+        JsonNode mappedItem;
+        try {
+            mappedItem = dataTransformUtility.transformData(rawItem, chainrSpec);
+        } catch (RuntimeException e) {
+            log.error("LtiServiceImpl::mapItemWithSpec: the spec of partner {} could not be applied", partnerCode, e);
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.TRANSFORM_SPEC_FAILED + partnerCode);
+        }
+        if (mappedItem == null || !mappedItem.path(Constants.CONTENT).isObject()) {
+            throw new LtiReturnException(HttpStatus.BAD_REQUEST, Constants.TRANSFORM_NO_CONTENT_OBJECT + partnerCode);
+        }
+        return mappedItem;
     }
 
     /**
