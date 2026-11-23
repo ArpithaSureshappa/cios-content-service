@@ -1,5 +1,6 @@
 package com.igot.cios.lti.ags.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cios.lti.ags.dto.ScoreDto;
 import com.igot.cios.lti.ags.exception.AgsApiException;
 import com.igot.cios.lti.ags.security.AgsBearerTokenValidator;
@@ -43,11 +44,10 @@ public class AgsController {
 
     @PostMapping("/lineitems/1/lineitem/scores")
     public ResponseEntity<Void> publishScore(@RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
-                                               @RequestBody ScoreDto scoreDto) {
+                                               @RequestBody JsonNode scoreDto) {
         bearerTokenValidator.validate(authorization, PARTNER_CODE, Constants.AGS_SCOPE_SCORE);
-        log.info("AgsController::publishScore: userId={}, scoreGiven={}, scoreMaximum={}",
-                scoreDto.getUserId(), scoreDto.getScoreGiven(), scoreDto.getScoreMaximum());
-        agsService.publishScore(PARTNER_CODE, "1", scoreDto);
+        log.info("AgsController: publishScore called with scoreDto: {}", scoreDto);
+       // agsService.publishScore(PARTNER_CODE, "1", scoreDto);
         return ResponseEntity.ok().build();
     }
 
