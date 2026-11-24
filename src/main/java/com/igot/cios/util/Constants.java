@@ -333,7 +333,7 @@ public class Constants {
 
     public static final String API_LTI_DEEPLINK_RETURN = "api.lti.deeplink.return";
     public static final String DEEPLINK_JWT_PARAM = "JWT";
-    public static final String CONTENT_ITEMS = "contentItems";
+    public static final String CONTENT_DATA = "contentData";
     public static final int MAX_DEEPLINK_JWT_LENGTH = 32768;
     public static final String MISSING_JWT = "Missing mandatory parameter: JWT";
     public static final String DEEPLINK_JWT_TOO_LONG = "Deep Linking response is too large";
@@ -368,6 +368,10 @@ public class Constants {
     public static final String DEEPLINK_ITEM_CUSTOM_FIELD = "custom";
     public static final String LTI_PROTOCOL_VERSION_CLAIM_VALUE = "1.3.0";
     public static final String LTI_RESOURCE_LINK_ITEM_TYPE = "ltiResourceLink";
+    public static final String TRANSFORM_CONTENT_VIA_API = "transformContentViaApi";
+    public static final String TRANSFORM_SPEC_MISSING = "No transformContentViaApi spec is configured for partner: ";
+    public static final String TRANSFORM_SPEC_FAILED = "Unable to apply the transformContentViaApi spec for partner: ";
+    public static final String TRANSFORM_NO_CONTENT_OBJECT = "The transformContentViaApi spec did not produce a content object for partner: ";
 
     private Constants() {
     }
