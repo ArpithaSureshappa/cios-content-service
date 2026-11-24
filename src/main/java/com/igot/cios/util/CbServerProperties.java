@@ -107,7 +107,7 @@ public class CbServerProperties {
     @Value("${cdac.partner.code}")
     public String cdacPartnerCode;
 
-    @Value("${sso.url}")
+    @Value("${sso.admin.url}")
     public String keycloakUrl;
 
     @Value("${sso.realm}")
