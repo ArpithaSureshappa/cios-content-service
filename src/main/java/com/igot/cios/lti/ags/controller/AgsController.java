@@ -42,12 +42,12 @@ public class AgsController {
 
     // Matches the lineitem URL LtiProtocolMapper builds: {base}/lineitems/lineitem?externalId=...&partnerCode=...
     @PostMapping("/lineitems/lineitem/scores")
-    public ResponseEntity<Void> publishScore(@RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
+    public ResponseEntity<Void> publishScore(@RequestHeader("Authorization") String authorization,
                                                @RequestParam String externalId,
                                                @RequestParam String partnerCode,
                                                @RequestBody JsonNode scoreDto) {
        // bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_SCORE);
-        log.info("AgsController::publishScore: partnerCode={}, externalId={}, scores={}", partnerCode, externalId, scoreDto);
+        log.info("AgsController::publishScore: partnerCode={}, externalId={}, scores={}, authorization={}", partnerCode, externalId, scoreDto, authorization);
        // agsService.publishScore(partnerCode, externalId, scoreDto);
         return ResponseEntity.ok().build();
     }
