@@ -14,24 +14,22 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
 /**
  * LTI 1.3 Advantage Assignment and Grade Services (AGS) - the Platform-hosted side of the spec,
- * scoped to exactly what's needed: receive and record the score Moodle (the one LTI 1.3 Tool
- * integrated today) posts for a user. No LineItem table, no per-partner line item management -
- * {@code lineItemId} is an opaque identifier from the URL, not a row we look up or validate.
+ * scoped to exactly what's needed: receive and record the score the Tool posts for a user.
+ * {@code externalId} identifies the course/content (same value LtiProtocolMapper put in the
+ * lineitem URL's query string) and doubles as the lineItemId - no LineItem table, no per-partner
+ * line item management.
  */
 @Slf4j
 @RestController
 @RequestMapping("/ciosIntegration/lti/ags")
 public class AgsController {
-
-    // Keycloak's LtiProtocolMapper hardcodes this same partner code into the AGS claim it
-    // issues, since Moodle is the only LTI 1.3 tool registered against this deployment today.
-    private static final String PARTNER_CODE = "IGOT-MOODLE-W8HF4";
 
     private final AgsService agsService;
     private final AgsBearerTokenValidator bearerTokenValidator;
@@ -42,12 +40,15 @@ public class AgsController {
         this.bearerTokenValidator = bearerTokenValidator;
     }
 
-    @PostMapping("/lineitems/1/lineitem/scores")
+    // Matches the lineitem URL LtiProtocolMapper builds: {base}/lineitems/lineitem?externalId=...&partnerCode=...
+    @PostMapping("/lineitems/lineitem/scores")
     public ResponseEntity<Void> publishScore(@RequestHeader(Constants.AUTHORIZATION_HEADER) String authorization,
+                                               @RequestParam String externalId,
+                                               @RequestParam String partnerCode,
                                                @RequestBody JsonNode scoreDto) {
-       // bearerTokenValidator.validate(authorization, PARTNER_CODE, Constants.AGS_SCOPE_SCORE);
-        log.info("AgsController: publishScore called with scoreDto: {}", scoreDto);
-       // agsService.publishScore(PARTNER_CODE, "1", scoreDto);
+       // bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_SCORE);
+        log.info("AgsController::publishScore: partnerCode={}, externalId={}, userId={}", partnerCode, externalId, scoreDto.getUserId());
+       // agsService.publishScore(partnerCode, externalId, scoreDto);
         return ResponseEntity.ok().build();
     }
 
