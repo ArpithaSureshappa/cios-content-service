@@ -47,7 +47,7 @@ public class AgsController {
                                                @RequestParam String partnerCode,
                                                @RequestBody JsonNode scoreDto) {
        // bearerTokenValidator.validate(authorization, partnerCode, Constants.AGS_SCOPE_SCORE);
-        log.info("AgsController::publishScore: partnerCode={}, externalId={}, userId={}", partnerCode, externalId, scoreDto.getUserId());
+        log.info("AgsController::publishScore: partnerCode={}, externalId={}, scores={}", partnerCode, externalId, scoreDto);
        // agsService.publishScore(partnerCode, externalId, scoreDto);
         return ResponseEntity.ok().build();
     }
